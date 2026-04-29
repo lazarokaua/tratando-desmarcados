@@ -5,6 +5,9 @@ Main module for basic data analysis using Pandas and Streamlit.
 from pathlib import Path
 import pandas as pd
 import streamlit as st
+from datetime import datetime
+import io
+
 
 def read_data(file_path) -> pd.DataFrame:
     """
@@ -24,7 +27,7 @@ def process_data(data_frame) -> pd.DataFrame:
         # .copy() evita o erro "SettingWithCopyWarning" ao criar a nova coluna
         df = data_frame[colunas].copy()
 
-        df['Corte'] = df['Inventory type'].apply(lambda x: "Corte" if x == 14 else "Analisar")
+        df['Acao'] = df['Inventory type'].apply(lambda x: "Corte" if x == 14 else "Analisar")
         df = df.sort_values(by="Ordered quantity", ascending=False)
 
         return df
@@ -38,6 +41,8 @@ def main() -> None:
     # 1. Drag and Drop
     loaded_file = st.file_uploader("Arraste seu OrderLine aqui: ", type='csv')
 
+   
+
     # 2. Trava de segurança: Só executa se o arquivo existir
     if loaded_file is not None:
         try:
@@ -50,6 +55,20 @@ def main() -> None:
             # Exibe os resultados
             st.subheader("Resultado do Processamento")
             st.dataframe(df_final, use_container_width=True)
+
+            buffer = io.BytesIO()
+
+            with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                df_final.to_excel(writer, index=False)
+
+            df_bytes = buffer.getvalue()
+
+            st.download_button(
+                label="📥 Baixar como Excel",
+                data=df_bytes,
+                file_name=f"OrderLine_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
             
             # Feedback de sucesso
             st.success(f"Arquivo '{loaded_file.name}' processado com sucesso!")
@@ -59,6 +78,9 @@ def main() -> None:
     else:
         # Mensagem caso não tenha arquivo
         st.info("Aguardando upload do arquivo CSV (OrderLine) para análise.")
+
+    
+
 
 
 if __name__ == "__main__":
